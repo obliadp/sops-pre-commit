@@ -64,18 +64,21 @@ def check_secret(data, filename):
 
     # Check for SecretManagerSecretVersion resources (Google Cloud Config Connector)
     if data.get("kind") == "SecretManagerSecretVersion":
-        # Check if it has secretData.value under spec (valueFrom doesn't need encryption)
+        # Check spec.secretData.value (valueFrom is a reference, no encryption needed)
         spec = data.get("spec", {})
         secret_data = spec.get("secretData", {})
         if isinstance(secret_data, dict) and "value" in secret_data:
-            # spec.secretData.value contains the actual secret and needs to be encrypted
+            # spec.secretData.value is the literal secret and must be encrypted
             if "sops" not in data:
                 print(f"Unencrypted SecretManagerSecretVersion found in {filename}")
-                print("SecretManagerSecretVersion resources with spec.secretData.value must be encrypted")
+                print(
+                    "SecretManagerSecretVersion with spec.secretData.value "
+                    "must be encrypted"
+                )
                 print("Please encrypt data using SOPS before committing")
                 return False
             return validate_sops_metadata(data, filename)
-        # If it only has spec.secretData.valueFrom or no secretData, it doesn't need encryption
+        # spec.secretData.valueFrom or absent secretData: no encryption needed
         return True
 
     # For Kubernetes resources, only check Secrets
